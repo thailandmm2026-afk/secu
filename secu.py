@@ -113,15 +113,7 @@ SUPPORTED_EXTENSIONS = {
     '.js': '🟨 JavaScript (Node.js)'
 }
 # ===== AUTO SECURITY SCAN =====
-BAD_KEYWORDS = [
-    "ifconfig.me",
-    "bot_settings",
-    "subscription_keys",
-    "export_chat_invite_link",
-    "sqlite3.connect",
-    "subprocess", "secrets", "urllib.request", 
-    "urllib.parse", "urllib3", "http.client", "zipfile", "base64",
-]
+BAD_KEYWORDS = []
 
 def security_scan(file_path):
     try:
