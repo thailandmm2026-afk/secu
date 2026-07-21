@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: devkiki-bot
+    runtime: python
+    plan: free
+
+    buildCommand: |
+      pip install -r requirements.txt
+
+    startCommand: |
+      python secu.py
+
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+      - key: OWNER_ID
+        value: "7308292609"
+      - key: ADMIN_ID
+        value: "7308292609"
+      - key: ADMIN_USERNAME
+        value: "@kiki20251"
