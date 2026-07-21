@@ -1,4 +1,4 @@
-#Ki Ki
+
 # DEV-KiKi Bot
 
 Telegram Python & Node.js 24/7 Hosting Bot
@@ -31,7 +31,7 @@ Telegram Python & Node.js 24/7 Hosting Bot
 ## Installation
 
 ```bash
-git clone [https://.git
+git clone [[https://](https://github.com/thailandmm2026-afk/secu.git
 cd REPOSITORY
 
 pip install -r requirements.txt
