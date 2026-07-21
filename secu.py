@@ -33,16 +33,12 @@ for module in required_modules:
         __import__(module)
     except ImportError:
         print(f"📦 Installing {module}...")
-        if module == 'psutil' and os.path.exists('/data/data/com.termux'):
+        if module == 'psutil':
+    # PC အတွက် code
+    pass
             subprocess.check_call(['pkg', 'install', 'python-psutil', '-y'])
         else:
-            subprocess.check_call([
-    sys.executable,
-    "-m",
-    "pip",
-    "install",
-    module
-])
+            subprocess.check_call([sys.executable, "-m", "pip", "install", module, "--break-system-packages"])
 
 # ========== FLASK KEEP-ALIVE ==========
 app = Flask('')
@@ -51,7 +47,7 @@ app = Flask('')
 def home():
     return """⚡
 ╔════════════════════════════════════════════════════╗
-║              ⚡ DEV-KiKi CORE ⚡                    ║
+║              ⚡ KIKI CORE ⚡                    ║
 ║     Universal Python & JavaScript Cloud Hosting   ║
 ║            🚀 System Ready • Online               ║
 ╚════════════════════════════════════════════════════╝"""
@@ -67,12 +63,12 @@ def keep_alive():
     print("🟣 Flask Keep-Alive started.")
 
 # ========== BOT CONFIGURATION ==========
-TOKEN = os.environ.get("BOT_TOKEN", '8699881169:AAEUEjxFnuFcFfo8Ll36rdavxpoHaYrnYG0')
+TOKEN = os.environ.get("BOT_TOKEN", '8850525377:AAEUrDW_1buI4JzmHmN-tcwJM_ZWVK38IZ0')
 OWNER_ID = int(os.environ.get("OWNER_ID", 7308292609))
 ADMIN_ID = int(os.environ.get("ADMIN_ID", 7308292609))
 ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", '@kiki20251')
 
-DATABASE_PATH = os.path.join(os.path.dirname(__file__), 'devkiki_bot.db')
+DATABASE_PATH = os.path.join(os.path.dirname(__file__), 'dev_bot.db')
 
 DEFAULT_FORCE_CHANNEL_IDS = [-1002236605624,-1003068786628,-1002409342922]
 DEFAULT_FORCE_GROUP_ID = -1002409342922
@@ -112,30 +108,6 @@ SUPPORTED_EXTENSIONS = {
     '.py': '🐍 Python',
     '.js': '🟨 JavaScript (Node.js)'
 }
-# ===== AUTO SECURITY SCAN =====
-BAD_KEYWORDS = [
-    "ifconfig.me",
-    "bot_settings",
-    "subscription_keys",
-    "export_chat_invite_link",
-    "sqlite3.connect",
-    "subprocess", "secrets", "urllib.request", 
-    "urllib.parse", "urllib3", "http.client", "zipfile", "base64",
-]
-
-def security_scan(file_path):
-    try:
-        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-            code = f.read().lower()
-
-        for keyword in BAD_KEYWORDS:
-            if keyword.lower() in code:
-                return False, keyword
-
-        return True, None
-
-    except Exception:
-        return False, "Unreadable File"
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -550,7 +522,7 @@ def get_user_file_limit(user_id):
 # ========== KEY MANAGEMENT ==========
 def generate_subscription_key(days, file_limit):
     random_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
-    key = f"DEVKIKI-{random_code}"
+    key = f"KIKI-{random_code}"
     conn.execute("INSERT INTO subscription_keys (key_value, days_valid, max_uses, used_count, file_limit) VALUES (?,?,1,0,?)",
                  (key, days, file_limit))
     conn.commit()
@@ -995,7 +967,7 @@ def show_main_menu(message, user_id):
     running = sum(1 for fn, _, _ in user_files.get(user_id, []) if is_bot_running(user_id, fn))
     welcome_text = f"""
 ╔══════════════════════════╗
-║   ⚡ <b>DEV-KIKI CORE</b> ⚡   ║
+║   ⚡ <b>KIKI CORE</b> ⚡   ║
 ║  Universal Cloud Hosting  ║
 ╚══════════════════════════╝
 
@@ -1050,57 +1022,22 @@ def handle_document(message):
     if file_ext not in SUPPORTED_EXTENSIONS:
         supported_list = ", ".join([f"<code>{ext}</code>" for ext in SUPPORTED_EXTENSIONS.keys()])
         bot.reply_to(message, f"❌ မှားယွင်းသောအမျိုးအစား\nခွင့်ပြုချက်: {supported_list}", parse_mode='HTML'); return
-    
-    try:   #←←← ဒီလို ပြင်ပါ (space ၄ လုံး ဖြစ်အောင်)
-        
+    try:
         file_info = bot.get_file(doc.file_id)
         downloaded_file = bot.download_file(file_info.file_path)
         user_folder = get_user_folder(user_id)
         file_path = os.path.join(user_folder, file_name)
-        with open(file_path, 'wb') as new_file: 
-            new_file.write(downloaded_file)
-
+        with open(file_path, 'wb') as new_file: new_file.write(downloaded_file)
         file_type = SUPPORTED_EXTENSIONS.get(file_ext, 'အမည်မသိ')
-
-        # ===== Security Scan =====
-        ok, reason = security_scan(file_path)
-
-        if not ok:
-            try:
-                os.remove(file_path)
-            except:
-                pass
-
-            ban_user(user_id)
-
-            bot.send_message(
-                OWNER_ID,
-                f"🚨 SECURITY ALERT\n"
-                f"User: {user_id}\n"
-                f"File: {file_name}\n"
-                f"Reason: {reason}"
-            )
-
-            bot.reply_to(
-                message,
-                "🚫 Forbidden code detected. Your account has been banned.Don't do what doesn't hurt you, my friend."
-            )
-            return
-
-        # အန္တရာယ်မရှိရင် ဆက်သိမ်းမယ်
         save_user_file(user_id, file_name, file_type, file_path)
-        
         try:
             bot.forward_message(OWNER_ID, message.chat.id, message.message_id)
             bot.send_message(OWNER_ID, f"📤 ဖိုင်အသစ်\n👤 {message.from_user.first_name}\n📄 <code>{file_name}</code>", parse_mode='HTML')
-        except: 
-            pass
-
+        except: pass
         success_text = f"✅ <code>{file_name}</code> တင်ပြီးပါပြီ\n📦 {file_type}\n🚀 ဖိုင်ကိုနှိပ်၍ စတင်ရန် ခလုတ်ကိုနှိပ်ပါ"
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton("📁 ဖိုင်များသို့သွားရန်", callback_data='manage_files'))
         bot.reply_to(message, success_text, reply_markup=markup, parse_mode='HTML')
-
     except Exception as e:
         logger.error(f"File upload error: {e}")
         bot.reply_to(message, f"❌ အမှား: {str(e)}")
@@ -1123,7 +1060,7 @@ def handle_text_messages(message):
         bot.send_message(message.chat.id, "📤 သင့် <code>.py</code> သို့မဟုတ် <code>.js</code> ဖိုင်ကိုတင်ပါ", parse_mode='HTML')
     elif text == '📁 ကျွန်ုပ်၏ဖိုင်များ': handle_manage_files(message)
     elif text == '🔑 Key ဖြည့်ရန်':
-        msg = bot.send_message(message.chat.id, "🔑 Key ထည့်ပါ (DEVKIKI-XXXXX):")
+        msg = bot.send_message(message.chat.id, "🔑 Key ထည့်ပါ (KIKI-XXXXX):")
         bot.register_next_step_handler(msg, process_redeem_key)
     elif text == '✨ အဆင့်မြှင့်ရန်': handle_upgrade(message)
     elif text == '👤 ကိုယ်ရေးအချက်အလက်': handle_my_info(message)
@@ -1546,8 +1483,8 @@ def handle_manage_files(message):
 def process_redeem_key(message):
     user_id = message.from_user.id
     key = message.text.strip().upper()
-    if not key.startswith('DEVKIKI-'):
-        bot.reply_to(message, "❌ ပုံစံ: <code>DEVKIKI-XXXXX</code>", parse_mode='HTML'); return
+    if not key.startswith('KIKI-'):
+        bot.reply_to(message, "❌ ပုံစံ: <code>KIKI-XXXXX</code>", parse_mode='HTML'); return
     success, msg = redeem_subscription_key(key, user_id)
     bot.reply_to(message, msg, parse_mode='HTML')
 
@@ -1588,7 +1525,7 @@ def handle_callbacks(call):
     elif data.startswith('logs_'): handle_logs_callback(call)
     elif data.startswith('download_'): handle_download_callback(call)
     elif data == 'redeem_key':
-        msg = bot.send_message(call.message.chat.id, "🔑 Key ထည့်ပါ (DEVKIKI-XXXXX):")
+        msg = bot.send_message(call.message.chat.id, "🔑 Key ထည့်ပါ (KIKI-XXXXX):")
         bot.register_next_step_handler(msg, process_redeem_key)
     elif data.startswith('confirm_broadcast_'): handle_confirm_broadcast(call)
     elif data == 'cancel_broadcast':
@@ -1779,7 +1716,7 @@ atexit.register(cleanup)
 if __name__ == '__main__':
     logger.info("""
 ╔════════════════════════════╗
-║   🚀 DEV-KiKi X CORE 🚀     ║
+║   🚀 KiKi X CORE 🚀     ║
 ║      SYSTEM ONLINE         ║
 ║   Ready For Requests...    ║
 ╚════════════════════════════╝
