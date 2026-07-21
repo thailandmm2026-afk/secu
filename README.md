@@ -44,7 +44,7 @@ pip install -r requirements.txt
 Create the following variables.
 
 ```
-BOT_TOKEN=YOUR_BOT_TOKEN
+BOT_TOKEN=8699881169:AAEgmJ6IsjJZSnBLyXrMqiyxSLFDkhH9bmk
 OWNER_ID=7308292609
 ADMIN_ID=7308292609
 ADMIN_USERNAME=@kiki20251
