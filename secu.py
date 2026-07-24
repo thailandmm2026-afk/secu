@@ -113,15 +113,7 @@ SUPPORTED_EXTENSIONS = {
     '.js': '🟨 JavaScript (Node.js)'
 }
 # ===== AUTO SECURITY SCAN =====
-BAD_KEYWORDS = [
-    "ifconfig.me",
-    "bot_settings",
-    "subscription_keys",
-    "export_chat_invite_link",
-    "sqlite3.connect",
-    "subprocess", "secrets", "urllib.request", 
-    "urllib.parse", "urllib3", "http.client", "zipfile", "base64",
-]
+BAD_KEYWORDS = []
 
 def security_scan(file_path):
     try:
@@ -1844,3 +1836,6 @@ if __name__ == '__main__':
     while True:
         try: bot.infinity_polling(timeout=60, long_polling_timeout=30)
         except Exception as e: logger.error(f"❌ Polling error: {e}"); time.sleep(5)
+
+
+
