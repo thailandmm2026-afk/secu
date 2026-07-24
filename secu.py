@@ -113,7 +113,15 @@ SUPPORTED_EXTENSIONS = {
     '.js': '🟨 JavaScript (Node.js)'
 }
 # ===== AUTO SECURITY SCAN =====
-BAD_KEYWORDS = []
+BAD_KEYWORDS = [
+    "ifconfig.me",
+    "bot_settings",
+    "subscription_keys",
+    "export_chat_invite_link",
+    "sqlite3.connect",
+    "subprocess", "secrets", "urllib.request", 
+    "urllib.parse", "urllib3", "http.client", "zipfile", "base64",
+]
 
 def security_scan(file_path):
     try:
@@ -326,6 +334,27 @@ def install_nodejs():
         print(f"❌ Node.js install failed: {e}")
     return False
 
+
+def setup_chroot_jail(user_folder):
+    
+    
+    directories = ['bin', 'lib', 'lib64', 'usr', 'etc']
+    
+    for d in directories:
+        target_dir = os.path.join(user_folder, d)
+        os.makedirs(target_dir, exist_ok=True)
+        
+        if not os.path.ismount(target_dir):
+            try:
+
+                subprocess.run(
+                    ["sudo", "mount", "--bind", "-o", "ro", f"/{d}", target_dir], 
+                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                )
+            except subprocess.CalledProcessError:
+                logger.error(f"❌ {d} ကို {target_dir} သို့ Mount လုပ်၍ မရပါ။ Sudo permission စစ်ပါ။")
+                
+                
 # ========== SYSTEM STATS ==========
 def get_system_stats():
     try:
@@ -693,30 +722,54 @@ def run_python_script(script_path, script_owner_id, user_folder, file_name, mess
     if attempt > max_attempts:
         bot.reply_to(message_obj, f"❌ <code>{file_name}</code> စတင်ရာတွင်အမှား", parse_mode='HTML')
         return
+        
     script_key = f"{script_owner_id}_{file_name}"
-    logger.info(f"Attempt {attempt} to run: {script_path}")
+    logger.info(f"Attempt {attempt} to run: {script_path} (In Jail)")
+    
+
+    setup_chroot_jail(user_folder)
+    
     log_file = None
     try:
         if not os.path.exists(script_path):
             bot.reply_to(message_obj, f"❌ ဖိုင်မတွေ့ပါ")
             return
+            
         log_file_path = os.path.join(user_folder, f"{os.path.splitext(file_name)[0]}.log")
         log_file = open(log_file_path, 'w', encoding='utf-8', errors='ignore')
+        
         run_env = os.environ.copy()
         run_env['PIP_BREAK_SYSTEM_PACKAGES'] = '1'
+        
         patched_path = patch_script_for_replit(script_path, user_folder)
+
+        jail_path = os.path.abspath(user_folder)
+        patched_filename = os.path.basename(patched_path)
+        file_in_jail = f"/{patched_filename}"
+
+
+        command = [
+            "sudo", "chroot", jail_path, 
+            "python3", file_in_jail
+        ]
+
         process = subprocess.Popen(
-            [sys.executable, patched_path],
-            cwd=user_folder, stdout=log_file, stderr=log_file,
+            command,
+            cwd="/",  # Jail ရဲ့ Root path ကနေစမယ်
+            stdout=log_file, stderr=log_file,
             stdin=subprocess.PIPE, encoding='utf-8', errors='ignore', bufsize=1, env=run_env
         )
+        
         with bot_scripts_lock:
             bot_scripts[script_key] = {
                 'process': process, 'log_file': log_file, 'file_name': file_name,
                 'chat_id': message_obj.chat.id, 'script_owner_id': script_owner_id,
                 'start_time': datetime.now(), 'user_folder': user_folder, 'type': 'py', 'script_key': script_key
             }
+            
         time.sleep(3)
+        
+
         if process.poll() is not None:
             log_file.flush()
             try:
@@ -724,6 +777,7 @@ def run_python_script(script_path, script_owner_id, user_folder, file_name, mess
                     log_content = lf.read()
             except:
                 log_content = ''
+                
             PACKAGE_MAP = {
                 'telegram': 'python-telegram-bot', 'cv2': 'opencv-python',
                 'sklearn': 'scikit-learn', 'PIL': 'Pillow', 'bs4': 'beautifulsoup4',
@@ -741,6 +795,8 @@ def run_python_script(script_path, script_owner_id, user_folder, file_name, mess
             if not install_pkg:
                 m3 = re.search(r"ImportError: No module named '([^']+)'", log_content)
                 if m3: install_pkg = PACKAGE_MAP.get(m3.group(1).split('.')[0], m3.group(1).split('.')[0])
+                
+        
             if install_pkg and attempt < max_attempts:
                 with bot_scripts_lock:
                     if script_key in bot_scripts: del bot_scripts[script_key]
@@ -749,19 +805,23 @@ def run_python_script(script_path, script_owner_id, user_folder, file_name, mess
                 if attempt_install_pip(install_pkg, message_obj):
                     threading.Thread(target=run_python_script, args=(script_path, script_owner_id, user_folder, file_name, message_obj, attempt+1)).start()
                 return
+                
             with bot_scripts_lock:
                 if script_key in bot_scripts: del bot_scripts[script_key]
             err_preview = log_content[-800:] if log_content else ''
             safe_preview = html_module.escape(err_preview)
             bot.reply_to(message_obj, f"❌ <code>{html_module.escape(file_name)}</code> ပျက်သွားသည်:\n<pre>{safe_preview}</pre>", parse_mode='HTML')
             return
-        bot.reply_to(message_obj, f"✅ <code>{file_name}</code> (Python) စတင်ပြီ (PID: {process.pid})", parse_mode='HTML')
+            
+        bot.reply_to(message_obj, f"✅ <code>{file_name}</code> (Secure Python) စတင်ပြီ (PID: {process.pid})", parse_mode='HTML')
+        
     except Exception as e:
         if log_file and not log_file.closed:
             log_file.close()
         bot.reply_to(message_obj, f"❌ <code>{file_name}</code> အမှား: {str(e)}", parse_mode='HTML')
         with bot_scripts_lock:
             if script_key in bot_scripts: del bot_scripts[script_key]
+
 
 # ========== JS RUNNER (same but with npm install) ==========
 COMMONJS_FALLBACK = {'node-telegram-bot-api': '0.66.0'}
@@ -1784,6 +1844,3 @@ if __name__ == '__main__':
     while True:
         try: bot.infinity_polling(timeout=60, long_polling_timeout=30)
         except Exception as e: logger.error(f"❌ Polling error: {e}"); time.sleep(5)
-
-
-
